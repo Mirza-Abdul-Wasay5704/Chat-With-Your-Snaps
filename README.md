@@ -960,7 +960,7 @@ SOFTWARE.
 - 📚 **Documentation:** See this README
 - 💬 **Discussions:** GitHub Discussions
 - 🐛 **Issues:** GitHub Issues
-- 📧 **Email:** support@memoryai.example.com
+- 📧 **LinkedIn:** https://www.linkedin.com/in/mirza-abdul-wasay-uddin-a49742250/?originalSubdomain=pk
 
 ### Community
 
