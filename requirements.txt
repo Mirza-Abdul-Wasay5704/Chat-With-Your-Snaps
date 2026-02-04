@@ -1,0 +1,42 @@
+# Memories Retrieval System - Dependencies
+# Phase 1: Core functionality
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Data Validation
+pydantic>=2.5.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Firebase Storage
+firebase-admin>=6.3.0
+
+# Database
+# SQLite is included in Python standard library
+
+# Phase 2 Dependencies
+# ------------------------------------------------
+# Machine Learning
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.36.0
+accelerate>=0.25.0
+
+# Vector Search
+faiss-cpu>=1.7.4
+
+# Progress bars (for CLI tools)
+tqdm>=4.66.0
+
+# Development Dependencies
+# ------------------------------------------------
+# pytest>=7.4.0
+# pytest-asyncio>=0.23.0
+# httpx>=0.26.0  # For testing FastAPI

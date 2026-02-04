@@ -1,0 +1,24 @@
+Chat With your Snaps:
+
+1) users will upload memories.json/ their multiple images.
+2) system will download the images ONLY using memories.json and save them. (save users data where?)
+3) once the data is saved, the system will start preprocessing on the data.
+4) if the user have uploaded memories.json and its downloaded then check if the downloaded item is an image or a zip file. if its an image then it means it has no filters applied on it, and if its a zip file then it contains 2 files inside the zip. one would be the image in .jpg or .jpeg and the second one would be in the .png which will be the filter applied on the picture. the snapchat save the filter applied images like this. Then these type of images must be merged upon each other to make it a single filter applied image and replace it with the respective downloaded zip item.
+5) once we have all the images then we need to check the duplicates by checking the timestamp because same images will have the same timestamp and we need to remove the duplicates and only keeping the single occurance.
+6) once we have all unique images then we need to create an index which will map each image to its unique ID.
+7) once we got unique images then we need to caption all these images using the model named "Florence2". as the model generates the caption another index should be build which should maintain the unique IDs of images and their respective generated Caption. helps map the Unique IDs to their respective caption.
+
+8) once the caption index is built, the system will generate the clip-vit-large-patch14 embeddings of those captions each of size 786Dim to grab the textual context and save it into a vector database and save unique identifier of the a caption's embedding in the vector database into the a Master Index which will contain the unique ID of each image and will be mapped to it's caption embedding vector DB unique Identifier of the respective image.
+
+9) once the master index is populated with caption embedding identifiers then the system will create the embedding of each image using CLIP of size 786Dim to grab the visual context. and save them into the vector database. the unique idenitifies in the vector DB of each image's embedding will be save into the Master Index respective to the image ID.
+
+10) now we have textual context and visual context of each image. also we have a master index which consist of Image IDs and each having their textual embedding identifier and visual embedding identifier.
+
+11) save these vector databases and indexs so we can access them directly during inferencing / querring without perform the whole preprocessing again and again. (where to save these Vector DBs and indexes?)
+
+12) once everything is saved now we are good for quering our images so we can describe in text which ever photo we are trying to retrieve from all the images. 
+
+13) the user will enter his query in text like "show me images when i was enjoying in the rain." now this text will be first embedded in to the same size using the same encoder as we did our captions. then this embedding will be matched by our textual and visual embeddings using cosine similarity. 
+
+14) now the system will calculate the weighted sum score by taking the 70% of the textual score and 30% of the visual score and then add them now the weighted sum will be sorted in decending order (higher to lower) so the most relevant images should be displayed to user according to his text query. 
+

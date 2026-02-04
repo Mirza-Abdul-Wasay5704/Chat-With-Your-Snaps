@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memories Retrieval System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        snap: {
+                            yellow: '#FFFC00',
+                            dark: '#0D0D0D',
+                            gray: '#1a1a1a',
+                            light: '#2a2a2a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 252, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 252, 0, 0.8); }
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .result-card img {
+            transition: transform 0.3s ease;
+        }
+        .result-card:hover img {
+            transform: scale(1.05);
+        }
+        .loading-spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #FFFC00;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+        }
+        .tab-active {
+            border-bottom: 2px solid #FFFC00;
+            color: #FFFC00;
+        }
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-snap-dark text-white font-sans min-h-screen">
+    <!-- Header -->
+    <header class="bg-snap-gray border-b border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-snap-yellow rounded-lg flex items-center justify-center">
+                        <i class="fas fa-camera text-black text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold">Memories Retrieval</h1>
+                        <p class="text-xs text-gray-400">Search your Snapchat memories with AI</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="connectionStatus" class="flex items-center space-x-2">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span class="text-sm text-gray-400">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-snap-gray border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex space-x-8">
+                <button onclick="showTab('search')" id="tab-search" class="py-4 px-2 text-sm font-medium tab-active transition-colors">
+                    <i class="fas fa-search mr-2"></i>Search
+                </button>
+                <button onclick="showTab('upload')" id="tab-upload" class="py-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-upload mr-2"></i>Upload
+                </button>
+                <button onclick="showTab('pipeline')" id="tab-pipeline" class="py-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-cogs mr-2"></i>Pipeline
+                </button>
+                <button onclick="showTab('status')" id="tab-status" class="py-4 px-2 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-chart-bar mr-2"></i>Status
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Search Tab -->
+        <section id="section-search" class="fade-in">
+            <!-- Search Box -->
+            <div class="max-w-3xl mx-auto mb-8">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Describe what you're looking for... (e.g., 'beach sunset with friends')"
+                        class="w-full bg-snap-gray border border-gray-700 rounded-xl py-4 px-6 pr-14 text-lg focus:outline-none focus:border-snap-yellow focus:ring-1 focus:ring-snap-yellow transition-all"
+                        onkeypress="if(event.key === 'Enter') performSearch()"
+                    >
+                    <button 
+                        onclick="performSearch()" 
+                        class="absolute right-2 top-1/2 -translate-y-1/2 bg-snap-yellow text-black px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors"
+                    >
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between mt-3">
+                    <div class="flex items-center space-x-4 text-sm text-gray-400">
+                        <span>Results:</span>
+                        <select id="resultLimit" class="bg-snap-light border border-gray-700 rounded px-2 py-1 text-white">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Uses 70% text + 30% image similarity
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" class="image-grid">
+                <!-- Results will be populated here -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-20">
+                <div class="w-24 h-24 bg-snap-gray rounded-full mx-auto mb-6 flex items-center justify-center">
+                    <i class="fas fa-images text-4xl text-gray-600"></i>
+                </div>
+                <h3 class="text-xl font-medium text-gray-400 mb-2">Search Your Memories</h3>
+                <p class="text-gray-500 max-w-md mx-auto">
+                    Use natural language to find your photos. Try searching for places, people, activities, or feelings.
+                </p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="searchLoading" class="hidden text-center py-20">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-400">Searching through your memories...</p>
+            </div>
+        </section>
+
+        <!-- Upload Tab -->
+        <section id="section-upload" class="hidden fade-in">
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-snap-gray rounded-2xl p-8 border border-gray-800">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-snap-light rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-file-upload text-2xl text-snap-yellow"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Upload Memories Export</h2>
+                        <p class="text-gray-400">Upload your <code class="bg-snap-light px-2 py-1 rounded">memories_history.json</code> file from Snapchat data export</p>
+                    </div>
+
+                    <!-- File Upload Area -->
+                    <div 
+                        id="dropZone"
+                        class="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center hover:border-snap-yellow transition-colors cursor-pointer"
+                        onclick="document.getElementById('fileInput').click()"
+                    >
+                        <input type="file" id="fileInput" accept=".json" class="hidden" onchange="handleFileSelect(event)">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-500 mb-4"></i>
+                        <p class="text-gray-400 mb-2">Drag and drop your JSON file here</p>
+                        <p class="text-gray-500 text-sm">or click to browse</p>
+                    </div>
+
+                    <!-- Selected File Info -->
+                    <div id="selectedFile" class="hidden mt-4 bg-snap-light rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-file-code text-snap-yellow text-xl"></i>
+                                <div>
+                                    <p id="fileName" class="font-medium">filename.json</p>
+                                    <p id="fileSize" class="text-sm text-gray-400">0 KB</p>
+                                </div>
+                            </div>
+                            <button onclick="clearFile()" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <button 
+                        id="uploadBtn"
+                        onclick="uploadFile()"
+                        disabled
+                        class="w-full mt-6 bg-snap-yellow text-black py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-yellow-400 transition-colors"
+                    >
+                        <i class="fas fa-upload mr-2"></i>Start Upload & Processing
+                    </button>
+
+                    <!-- Upload Progress -->
+                    <div id="uploadProgress" class="hidden mt-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Processing...</span>
+                            <span id="uploadPercent" class="text-sm font-medium">0%</span>
+                        </div>
+                        <div class="h-2 bg-snap-light rounded-full overflow-hidden">
+                            <div id="uploadProgressBar" class="h-full bg-snap-yellow progress-bar" style="width: 0%"></div>
+                        </div>
+                        <p id="uploadStatus" class="text-sm text-gray-400 mt-2"></p>
+                    </div>
+                </div>
+
+                <!-- How to Export Guide -->
+                <div class="mt-8 bg-snap-gray rounded-2xl p-6 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center">
+                        <i class="fas fa-question-circle text-snap-yellow mr-2"></i>
+                        How to export your Snapchat data
+                    </h3>
+                    <ol class="space-y-3 text-gray-400 text-sm">
+                        <li class="flex items-start">
+                            <span class="bg-snap-light text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 flex-shrink-0">1</span>
+                            Open Snapchat → Settings → My Data
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-snap-light text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 flex-shrink-0">2</span>
+                            Request your data and wait for the email
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-snap-light text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 flex-shrink-0">3</span>
+                            Download and extract the ZIP file
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-snap-light text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 flex-shrink-0">4</span>
+                            Find <code class="bg-snap-light px-1 rounded">memories_history.json</code> in the export
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pipeline Tab -->
+        <section id="section-pipeline" class="hidden fade-in">
+            <div class="max-w-3xl mx-auto">
+                <div class="bg-snap-gray rounded-2xl p-8 border border-gray-800">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-snap-light rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-magic text-2xl text-purple-400"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">AI Processing Pipeline</h2>
+                        <p class="text-gray-400">Generate captions and embeddings for semantic search</p>
+                    </div>
+
+                    <!-- Pipeline Options -->
+                    <div class="grid grid-cols-3 gap-4 mb-8">
+                        <button 
+                            onclick="runPipeline('full')"
+                            class="bg-snap-light p-4 rounded-xl border border-gray-700 hover:border-purple-500 transition-colors group"
+                        >
+                            <i class="fas fa-rocket text-2xl text-purple-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                            <h4 class="font-medium">Full Pipeline</h4>
+                            <p class="text-xs text-gray-400 mt-1">Captions + Embeddings</p>
+                        </button>
+                        <button 
+                            onclick="runPipeline('caption')"
+                            class="bg-snap-light p-4 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors group"
+                        >
+                            <i class="fas fa-comment-dots text-2xl text-blue-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                            <h4 class="font-medium">Captions Only</h4>
+                            <p class="text-xs text-gray-400 mt-1">Florence-2 model</p>
+                        </button>
+                        <button 
+                            onclick="runPipeline('embed')"
+                            class="bg-snap-light p-4 rounded-xl border border-gray-700 hover:border-green-500 transition-colors group"
+                        >
+                            <i class="fas fa-vector-square text-2xl text-green-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                            <h4 class="font-medium">Embeddings Only</h4>
+                            <p class="text-xs text-gray-400 mt-1">CLIP ViT-L/14</p>
+                        </button>
+                    </div>
+
+                    <!-- Pipeline Status -->
+                    <div id="pipelineStatus" class="hidden">
+                        <div class="bg-snap-light rounded-xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-medium">Pipeline Progress</h4>
+                                <span id="pipelineJobId" class="text-xs text-gray-400"></span>
+                            </div>
+                            
+                            <!-- Progress Steps -->
+                            <div class="space-y-4">
+                                <div id="step-caption" class="flex items-center space-x-4">
+                                    <div class="w-8 h-8 rounded-full bg-snap-gray flex items-center justify-center">
+                                        <i class="fas fa-comment text-gray-500"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm">Caption Generation</span>
+                                            <span id="caption-progress" class="text-xs text-gray-400">Pending</span>
+                                        </div>
+                                        <div class="h-1 bg-snap-gray rounded-full mt-1 overflow-hidden">
+                                            <div id="caption-bar" class="h-full bg-blue-500 progress-bar" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="step-embed" class="flex items-center space-x-4">
+                                    <div class="w-8 h-8 rounded-full bg-snap-gray flex items-center justify-center">
+                                        <i class="fas fa-vector-square text-gray-500"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm">Embedding Generation</span>
+                                            <span id="embed-progress" class="text-xs text-gray-400">Pending</span>
+                                        </div>
+                                        <div class="h-1 bg-snap-gray rounded-full mt-1 overflow-hidden">
+                                            <div id="embed-bar" class="h-full bg-green-500 progress-bar" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Message -->
+                            <div id="pipelineMessage" class="mt-4 p-3 bg-snap-gray rounded-lg text-sm text-gray-400">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <span>Initializing pipeline...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Model Info -->
+                    <div class="mt-8 grid grid-cols-2 gap-4">
+                        <div class="bg-snap-light rounded-xl p-4">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <i class="fas fa-brain text-blue-400"></i>
+                                <h4 class="font-medium">Florence-2</h4>
+                            </div>
+                            <p class="text-xs text-gray-400">Microsoft's vision-language model for detailed image captioning</p>
+                        </div>
+                        <div class="bg-snap-light rounded-xl p-4">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <i class="fas fa-project-diagram text-green-400"></i>
+                                <h4 class="font-medium">CLIP ViT-L/14</h4>
+                            </div>
+                            <p class="text-xs text-gray-400">OpenAI's model for text-image embeddings (768 dimensions)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status Tab -->
+        <section id="section-status" class="hidden fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Stat Cards -->
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-images text-blue-400 text-xl"></i>
+                        </div>
+                        <span class="status-badge bg-blue-500/20 text-blue-400">Total</span>
+                    </div>
+                    <p id="stat-total" class="text-3xl font-bold">0</p>
+                    <p class="text-sm text-gray-400 mt-1">Images in library</p>
+                </div>
+
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-comment-dots text-purple-400 text-xl"></i>
+                        </div>
+                        <span class="status-badge bg-purple-500/20 text-purple-400">Captioned</span>
+                    </div>
+                    <p id="stat-captioned" class="text-3xl font-bold">0</p>
+                    <p class="text-sm text-gray-400 mt-1">With AI captions</p>
+                </div>
+
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-vector-square text-green-400 text-xl"></i>
+                        </div>
+                        <span class="status-badge bg-green-500/20 text-green-400">Embedded</span>
+                    </div>
+                    <p id="stat-embedded" class="text-3xl font-bold">0</p>
+                    <p class="text-sm text-gray-400 mt-1">Searchable images</p>
+                </div>
+
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-snap-yellow/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-database text-snap-yellow text-xl"></i>
+                        </div>
+                        <span class="status-badge bg-snap-yellow/20 text-snap-yellow">FAISS</span>
+                    </div>
+                    <p id="stat-vectors" class="text-3xl font-bold">0</p>
+                    <p class="text-sm text-gray-400 mt-1">Vector embeddings</p>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center">
+                        <i class="fas fa-server text-snap-yellow mr-2"></i>
+                        System Status
+                    </h3>
+                    <div id="systemStatus" class="space-y-3">
+                        <!-- Will be populated -->
+                    </div>
+                </div>
+
+                <div class="bg-snap-gray rounded-xl p-6 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center">
+                        <i class="fas fa-clock text-snap-yellow mr-2"></i>
+                        Recent Activity
+                    </h3>
+                    <div id="activityLog" class="space-y-2 max-h-64 overflow-y-auto">
+                        <p class="text-gray-500 text-sm">No recent activity</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <div class="mt-6 text-center">
+                <button onclick="refreshStatus()" class="bg-snap-light px-6 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-sync-alt mr-2"></i>Refresh Status
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4" onclick="closeModal()">
+        <div class="max-w-4xl max-h-full relative" onclick="event.stopPropagation()">
+            <button onclick="closeModal()" class="absolute -top-10 right-0 text-white hover:text-snap-yellow">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <img id="modalImage" src="" alt="" class="max-w-full max-h-[80vh] rounded-lg">
+            <div class="mt-4 bg-snap-gray rounded-lg p-4">
+                <p id="modalCaption" class="text-gray-300"></p>
+                <div class="flex items-center justify-between mt-3 text-sm text-gray-400">
+                    <span id="modalDate"></span>
+                    <span id="modalScore"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-snap-gray border border-gray-700 rounded-lg p-4 shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-center space-x-3">
+            <i id="toastIcon" class="fas fa-check-circle text-green-500"></i>
+            <span id="toastMessage">Success!</span>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE = '';
+
+        // Tab Management
+        function showTab(tabName) {
+            // Hide all sections
+            document.querySelectorAll('section[id^="section-"]').forEach(s => s.classList.add('hidden'));
+            // Remove active from all tabs
+            document.querySelectorAll('nav button').forEach(b => {
+                b.classList.remove('tab-active');
+                b.classList.add('text-gray-400');
+            });
+            
+            // Show selected section
+            document.getElementById(`section-${tabName}`).classList.remove('hidden');
+            // Activate tab
+            const tab = document.getElementById(`tab-${tabName}`);
+            tab.classList.add('tab-active');
+            tab.classList.remove('text-gray-400');
+
+            // Refresh data for certain tabs
+            if (tabName === 'status') refreshStatus();
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+            
+            msg.textContent = message;
+            icon.className = type === 'success' 
+                ? 'fas fa-check-circle text-green-500'
+                : type === 'error' 
+                    ? 'fas fa-exclamation-circle text-red-500'
+                    : 'fas fa-info-circle text-blue-500';
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // Search Functionality
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                showToast('Please enter a search query', 'error');
+                return;
+            }
+
+            const limit = document.getElementById('resultLimit').value;
+            
+            // Show loading
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('searchLoading').classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE}/query/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+                const data = await response.json();
+
+                document.getElementById('searchLoading').classList.add('hidden');
+
+                if (data.results && data.results.length > 0) {
+                    displayResults(data.results);
+                } else {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                    document.getElementById('emptyState').innerHTML = `
+                        <div class="w-24 h-24 bg-snap-gray rounded-full mx-auto mb-6 flex items-center justify-center">
+                            <i class="fas fa-search text-4xl text-gray-600"></i>
+                        </div>
+                        <h3 class="text-xl font-medium text-gray-400 mb-2">No Results Found</h3>
+                        <p class="text-gray-500 max-w-md mx-auto">
+                            Try different keywords or make sure you've processed your images first.
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('searchLoading').classList.add('hidden');
+                showToast('Search failed: ' + error.message, 'error');
+            }
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('searchResults');
+            container.innerHTML = results.map((result, index) => `
+                <div class="result-card bg-snap-gray rounded-xl overflow-hidden border border-gray-800 card-hover fade-in" style="animation-delay: ${index * 50}ms">
+                    <div class="relative aspect-square overflow-hidden cursor-pointer" onclick="openModal('${result.storage_url || result.local_path || ''}', '${(result.caption || '').replace(/'/g, "\\'")}', '${result.timestamp || ''}', ${(result.score || 0).toFixed(3)})">
+                        <img src="${result.storage_url || result.local_path || '/static/placeholder.png'}" alt="Memory" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300?text=Image'">
+                        <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs">
+                            ${((result.score || 0) * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm text-gray-300 line-clamp-2">${result.caption || 'No caption available'}</p>
+                        <p class="text-xs text-gray-500 mt-2">${result.timestamp ? new Date(result.timestamp).toLocaleDateString() : 'Unknown date'}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Modal Functions
+        function openModal(url, caption, date, score) {
+            document.getElementById('modalImage').src = url || 'https://via.placeholder.com/600?text=Image';
+            document.getElementById('modalCaption').textContent = caption || 'No caption';
+            document.getElementById('modalDate').textContent = date ? new Date(date).toLocaleString() : '';
+            document.getElementById('modalScore').textContent = `Similarity: ${(score * 100).toFixed(1)}%`;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        // File Upload
+        let selectedFile = null;
+
+        // Drag and drop handlers
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-snap-yellow');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-snap-yellow');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-snap-yellow');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.json')) {
+                selectFile(file);
+            } else {
+                showToast('Please upload a JSON file', 'error');
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) selectFile(file);
+        }
+
+        function selectFile(file) {
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            document.getElementById('selectedFile').classList.remove('hidden');
+            document.getElementById('uploadBtn').disabled = false;
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('selectedFile').classList.add('hidden');
+            document.getElementById('uploadBtn').disabled = true;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            document.getElementById('uploadProgress').classList.remove('hidden');
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('uploadStatus').textContent = 'Uploading file...';
+
+            try {
+                const response = await fetch(`${API_BASE}/ingest/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('uploadStatus').textContent = 'Processing started! Checking progress...';
+                    pollIngestStatus(data.job_id);
+                } else {
+                    throw new Error(data.detail || 'Upload failed');
+                }
+            } catch (error) {
+                showToast('Upload failed: ' + error.message, 'error');
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        async function pollIngestStatus(jobId) {
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/ingest/status/${jobId}`);
+                    const data = await response.json();
+
+                    const progress = data.progress || 0;
+                    document.getElementById('uploadPercent').textContent = `${progress}%`;
+                    document.getElementById('uploadProgressBar').style.width = `${progress}%`;
+                    document.getElementById('uploadStatus').textContent = data.message || 'Processing...';
+
+                    if (data.status === 'completed') {
+                        showToast('Upload completed successfully!', 'success');
+                        document.getElementById('uploadBtn').disabled = false;
+                        clearFile();
+                    } else if (data.status === 'failed') {
+                        throw new Error(data.message || 'Processing failed');
+                    } else {
+                        setTimeout(checkStatus, 2000);
+                    }
+                } catch (error) {
+                    showToast('Error: ' + error.message, 'error');
+                    document.getElementById('uploadBtn').disabled = false;
+                }
+            };
+            checkStatus();
+        }
+
+        // Pipeline Functions
+        let currentPipelineJob = null;
+
+        async function runPipeline(mode) {
+            try {
+                document.getElementById('pipelineStatus').classList.remove('hidden');
+                document.getElementById('pipelineMessage').innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Starting pipeline...';
+
+                const response = await fetch(`${API_BASE}/embeddings/process?mode=${mode}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentPipelineJob = data.job_id;
+                    document.getElementById('pipelineJobId').textContent = `Job: ${data.job_id}`;
+                    pollPipelineStatus(data.job_id);
+                } else {
+                    throw new Error(data.detail || 'Failed to start pipeline');
+                }
+            } catch (error) {
+                showToast('Pipeline error: ' + error.message, 'error');
+            }
+        }
+
+        async function pollPipelineStatus(jobId) {
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/embeddings/status/${jobId}`);
+                    const data = await response.json();
+
+                    // Update progress bars
+                    if (data.caption_progress !== undefined) {
+                        document.getElementById('caption-bar').style.width = `${data.caption_progress}%`;
+                        document.getElementById('caption-progress').textContent = `${data.caption_progress}%`;
+                    }
+                    if (data.embed_progress !== undefined) {
+                        document.getElementById('embed-bar').style.width = `${data.embed_progress}%`;
+                        document.getElementById('embed-progress').textContent = `${data.embed_progress}%`;
+                    }
+
+                    // Update message
+                    const statusIcon = data.status === 'completed' ? 'fa-check-circle text-green-500' 
+                                     : data.status === 'failed' ? 'fa-times-circle text-red-500'
+                                     : 'fa-spinner fa-spin text-blue-400';
+                    document.getElementById('pipelineMessage').innerHTML = `<i class="fas ${statusIcon} mr-2"></i>${data.message || 'Processing...'}`;
+
+                    if (data.status === 'completed') {
+                        showToast('Pipeline completed successfully!', 'success');
+                        refreshStatus();
+                    } else if (data.status === 'failed') {
+                        showToast('Pipeline failed: ' + data.message, 'error');
+                    } else {
+                        setTimeout(checkStatus, 2000);
+                    }
+                } catch (error) {
+                    setTimeout(checkStatus, 3000);
+                }
+            };
+            checkStatus();
+        }
+
+        // Status Functions
+        async function refreshStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status/`);
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('stat-total').textContent = data.total_images || 0;
+                document.getElementById('stat-captioned').textContent = data.images_with_captions || 0;
+                document.getElementById('stat-embedded').textContent = data.images_with_embeddings || 0;
+                
+                const faissStats = data.faiss_stats || {};
+                document.getElementById('stat-vectors').textContent = (faissStats.text_vectors || 0) + (faissStats.image_vectors || 0);
+
+                // Update system status
+                const systemStatus = document.getElementById('systemStatus');
+                systemStatus.innerHTML = `
+                    <div class="flex items-center justify-between py-2 border-b border-gray-700">
+                        <span class="text-gray-400">Database</span>
+                        <span class="flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>Connected</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-700">
+                        <span class="text-gray-400">FAISS Text Index</span>
+                        <span>${faissStats.text_vectors || 0} vectors</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-700">
+                        <span class="text-gray-400">FAISS Image Index</span>
+                        <span>${faissStats.image_vectors || 0} vectors</span>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <span class="text-gray-400">Storage</span>
+                        <span>${data.storage_type || 'Local'}</span>
+                    </div>
+                `;
+
+                addActivityLog('Status refreshed');
+            } catch (error) {
+                showToast('Failed to fetch status', 'error');
+            }
+        }
+
+        function addActivityLog(message) {
+            const log = document.getElementById('activityLog');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'text-sm py-1 border-b border-gray-800';
+            entry.innerHTML = `<span class="text-gray-500">${time}</span> <span class="text-gray-300">${message}</span>`;
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 10 entries
+            while (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStatus();
+        });
+    </script>
+</body>
+</html>
